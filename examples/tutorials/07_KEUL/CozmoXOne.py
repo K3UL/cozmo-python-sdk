@@ -10,6 +10,11 @@ from inputs import get_gamepad
 # Objet gérant une file FIFO avec taille max
 from collections import deque
 
+try:
+    from PIL import Image, ImageDraw
+except ImportError:
+    sys.exit("Cannot import from PIL: Do `pip3 install --user Pillow` to install")
+
 input_cache_size = 5
 last_inputs = []
 deq_last_inputs = deque(last_inputs, input_cache_size)
@@ -20,6 +25,43 @@ max_head_angle = 44.5
 min_analog_val = -32767
 max_analog_val = 32767
 prev_head_stick_val = 0
+
+# Annotator for displaying RobotState (position, etc.) on top of the camera feed
+class RobotStateDisplay(cozmo.annotate.Annotator):
+    def apply(self, image, scale):
+        d = ImageDraw.Draw(image)
+
+        bounds = [3, 0, image.width, image.height]
+
+        def print_line(text_line):
+            text = cozmo.annotate.ImageText(text_line, position=cozmo.annotate.TOP_LEFT, outline_color='black', color='lightblue')
+            text.render(d, bounds)
+            TEXT_HEIGHT = 11
+            bounds[1] += TEXT_HEIGHT
+
+        robot = self.world.robot  # type: cozmo.robot.Robot
+
+        # Display the Pose info for the robot
+        pose = robot.pose
+        print_line('Pose: Pos = <%.1f, %.1f, %.1f>' % pose.position.x_y_z)
+        print_line('Pose: Rot quat = <%.1f, %.1f, %.1f, %.1f>' % pose.rotation.q0_q1_q2_q3)
+        print_line('Pose: angle_z = %.1f' % pose.rotation.angle_z.degrees)
+        print_line('Pose: origin_id: %s' % pose.origin_id)
+
+        # Display the Accelerometer and Gyro data for the robot
+        print_line('Accelmtr: <%.1f, %.1f, %.1f>' % robot.accelerometer.x_y_z)
+        print_line('Gyro: <%.1f, %.1f, %.1f>' % robot.gyro.x_y_z)
+
+        # Display the Accelerometer and Gyro data for the mobile device
+        if robot.device_accel_raw is not None:
+            print_line('Device Acc Raw: <%.2f, %.2f, %.2f>' % robot.device_accel_raw.x_y_z)
+        if robot.device_accel_user is not None:
+            print_line('Device Acc User: <%.2f, %.2f, %.2f>' % robot.device_accel_user.x_y_z)
+        if robot.device_gyro is not None:
+            mat = robot.device_gyro.to_matrix()
+            print_line('Device Gyro Up: <%.2f, %.2f, %.2f>' % mat.up_xyz)
+            print_line('Device Gyro Fwd: <%.2f, %.2f, %.2f>' % mat.forward_xyz)
+            print_line('Device Gyro Left: <%.2f, %.2f, %.2f>' % mat.left_xyz)
 
 def get_head_angle_from_stick_val(analog_val: int):
     analog_gap = round(max_analog_val - min_analog_val, 2)
@@ -46,7 +88,7 @@ def handle_control_input_for_head(robot: cozmo.robot.Robot, pad_event):
 
         Analog stick goes from -32 768 to 32 767 => Gap of 65 535
         Cozmo's head goes from angles -25 deg to 44.5 => Gap of 69.5
-        We're going to consider that a difference of 1 000 on the stick is not worth a movement when considered in deg. Over that value we'll move
+        We're going to consider that a difference of 100 on the stick is not worth a movement when considered in deg. Over that value we'll move
 
         The middle of Cozmo's head angles is actually 9.75 and not 0
         65535/69.5 (the gaps) is 942.95
@@ -56,7 +98,7 @@ def handle_control_input_for_head(robot: cozmo.robot.Robot, pad_event):
         - Generalized, the formula will be (analogVal/(AnalogGap/HeadGap))+((MinHeadAngle+MaxHeadAngle)/2)
     '''
     if pad_event.ev_type == 'Absolute' and pad_event.code == 'ABS_RY':
-        if deq_last_inputs and (abs(pad_event.state - deq_last_inputs[-1]) < 1000):
+        if deq_last_inputs and (abs(pad_event.state - deq_last_inputs[-1]) < 100):
             return
 
         if deq_last_inputs and len(deq_last_inputs) == input_cache_size:
@@ -108,6 +150,8 @@ def handle_control_input(robot: cozmo.robot.Robot):
         handle_control_input_for_acceleration(robot, events)
 
 def cozmo_program(robot: cozmo.robot.Robot):
+    robot.world.image_annotator.add_annotator('robotState', RobotStateDisplay)
+
     min_head_angle = cozmo.robot.MIN_HEAD_ANGLE.degrees
     max_head_angle = cozmo.robot.MAX_HEAD_ANGLE.degrees
 

@@ -116,6 +116,13 @@ def handle_control_input_for_head(robot: cozmo.robot.Robot, pad_event):
                 robot.set_head_angle(get_head_angle_from_stick_val(pad_event.state))
             except cozmo.exceptions.RobotBusy:
                 pass
+    
+    if pad_event.ev_type == 'Key' and pad_event.code == 'BTN_THUMBR' and pad_event.state == 0:
+        try:
+            robot.set_head_angle(degrees(9.75))
+            deq_last_inputs.clear()
+        except cozmo.exceptions.RobotBusy:
+            pass
 
 def handle_control_input_for_acceleration(robot: cozmo.robot.Robot, pad_events):
     for pad_event in pad_events:

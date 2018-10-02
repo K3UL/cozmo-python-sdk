@@ -43,7 +43,7 @@ def get_in_position(robot: cozmo.robot.Robot):
 def cozmo_program(robot: cozmo.robot.Robot):
     current_directory = os.path.dirname(os.path.realpath(__file__))
     get_in_position(robot)
-    sdk_png = os.path.join(current_directory, "..", "..", "face_images", "cozmosdk.png")
+    sdk_png = os.path.join(current_directory, "..", "..", "face_images", "sunglass.png")
     hello_png = os.path.join(current_directory, "..", "..", "face_images", "hello_world.png")
 
     # load some images and convert them for display cozmo's face

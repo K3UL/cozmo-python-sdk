@@ -112,9 +112,10 @@ def lights_off(robot: cozmo.robot.Robot):
 
 lights_functions = [lights_off, quick_flash, quint_flash, quint_flash_p1_p1, quint_flash_p1_p2, single_flash_p1_p1, single_flash_p1_p2, manual_lights]
 nb_functions = len(lights_functions)
-current = 1
+current = 0
 
 def read_input():
+    print('Appel read input')
     global current
     while True:
         events = get_gamepad()
@@ -124,26 +125,29 @@ def read_input():
                     current = 0
                 else:
                     current += 1
-                print('Switching to function ' + str(lights_functions[current]) + ' -- Current is ' + str(current))
+                print('Switching to function ' + lights_functions[current].__name__ + ' -- Current is ' + str(current))
                 break
 
 def do_lighting(robot: cozmo.robot.Robot):
     while True:
         fn = lights_functions[current]
-        print('Executing fuction ' + str(fn) + ' -- Current is ' + str(current))
+        print('Executing fuction ' + fn.__name__ + ' -- Current is ' + str(current))
         fn(robot)
 
 def kill_runner(runner):
     runner.terminate()
 
 def cozmo_program(robot: cozmo.robot.Robot):
-    while True:
-        quint_flash_p1_p2(robot)
-    #input_reader = Process(target=read_input)
-    #input_reader.start()    
+    # read_input()
+    # while True:
+    #     quint_flash_p1_p2(robot)
+    input_reader = Process(target=read_input)
+    input_reader.start()    
     
-    #atexit.register(kill_runner, input_reader)
+    atexit.register(kill_runner, input_reader)
 
+    while True:
+        time.sleep(1)
     #do_lighting(robot)
 
 cozmo.run_program(cozmo_program)
